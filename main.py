@@ -1,5 +1,10 @@
 import cbpro
 import time
+import pandas as pd
+import btalib
+
+from datetime import datetime
+from cbpro import public_client
 
 BUY = 'buy'
 SELL = 'sell'
@@ -48,6 +53,7 @@ class Trading_System:
 
 # Technical analysis function
 # Only one position open at a time.
+# use dual moving average crossover
 
 # def do_maths():
 #     """If trade side of latest filled order
@@ -65,6 +71,41 @@ def first_buy(trading_systems, current_price):
 def first_sell(trading_systems, current_price):
     last_trade = trading_systems.trade(SELL, current_price, 0.002)
     return last_trade
+
+def get_data():
+    min = 60
+    min15 = 900
+    hour = 3600
+    hour6 = 21600
+    hour24 = 86400
+
+    public_client = cbpro.PublicClient()
+    data = public_client.get_product_historic_rates('BTC-USD', '2021-09-10', '2021-09-12', min15)
+
+    time_list = []
+    for line in data:
+        del line[5:]
+        time_list.append([str(x) for x in line])
+    
+    for line in time_list:
+        time_stamp = datetime.utcfromtimestamp(int(line[0])).strftime('%Y-%m-%d %H:%M:%S')
+        line[0] = time_stamp
+
+    pd.set_option("display.max_rows", None, "display.max_columns", None)
+
+    dataframe = pd.DataFrame(time_list, columns=['date', 'open', 'high', 'low', 'close'])
+    dataframe.set_index('date', inplace=True)
+    print(dataframe)
+    # dataframe.to_csv('Historic_rates')
+    # dataframe['20sma'] = dataframe.close.rolling(20).mean()
+    # # print(dataframe.tail(5))
+    # sma = btalib.sma(dataframe.close)
+    # dataframe['sma'] = btalib.sma(dataframe.close, period=20).df
+    # # print(sma.df)
+    # print(dataframe.tail())
+
+
+    return data
 
 
 
@@ -135,7 +176,8 @@ if __name__ == "__main__":
     # while run:
     #     main()
     #     time.sleep(10)
-    main()
+    # main()
+    get_data()
 
 
 

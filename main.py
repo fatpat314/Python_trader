@@ -82,10 +82,15 @@ def get_data():
         # delete volume column from data
         del line[5:]
 
+    # Setting pandas to display all rows and columns
     pd.set_option("display.max_rows", None, "display.max_columns", None)
+    # create dataframe
     dataframe = pd.DataFrame(data, columns=['date', 'open', 'high', 'low', 'close'])
+    # convert time to for humans
     dataframe['date'] = pd.to_datetime(dataframe['date'], unit= 's')
+    # localize time for timezone
     dataframe.date = dataframe.date.dt.tz_localize('UTC').dt.tz_convert('America/Los_Angeles',)
+    # replace index with time
     dataframe.set_index('date', inplace=True)
     # print(dataframe)
     return(dataframe)
@@ -95,7 +100,6 @@ def get_data():
 # True Range
 def get_true_range_indicator(dataframe):
     dataframe['TRANGE'] = talib.TRANGE(dataframe['high'], dataframe['low'], dataframe['close'])
-    # print(dataframe)
     return(dataframe)
 
 # Average True Range
@@ -112,18 +116,20 @@ def get_SMA_indicator(dataframe):
     # print(dataframe)
     return(dataframe)
 
+# Bollinger Bands
 def get_BBANDS_indicator(dataframe):
     dataframe['upperband'], dataframe['middleband'], dataframe['lowerband'] = talib.BBANDS(dataframe['close'], timeperiod=5, nbdevup=2, nbdevdn=2, matype=0)
     # print(dataframe)
     return(dataframe)
 
+# Moving average convergence divergence
 def get_MACD_indicator(dataframe):
-    dataframe['MACD'], dataframe['MACD_signal'], dataframe['MACD_history'] = MACD(dataframe['close'], fastperiod=12, slowperiod=26, signalperiod=9)
+    dataframe['MACD'], dataframe['MACD_signal'], dataframe['MACD_history'] = talib.MACD(dataframe['close'], fastperiod=12, slowperiod=26, signalperiod=9)
     return(dataframe)
 
 """Strategies"""
 
-def MACD():
+def MACDtrend():
     pass
 
 def supertrend(dataframe):
@@ -133,10 +139,13 @@ def supertrend(dataframe):
     
     for current in range(1, len(data.index)):
         previous = current -1
+        # if the close price is greater than the BBands upperband, uptrend is true
         if data['close'][current] > data['upperband'][previous]:
             data['in_uptrend'][current] = True
+        # if the close price is less than the BBands lowerband, uptrend is false
         elif data['close'][current] < data['lowerband'][previous]:
             data['in_uptrend'] = False
+        # else, set the current trend bool to the previous trend bool
         else:
             data['in_uptrend'][current] = data['in_uptrend'][previous]
 

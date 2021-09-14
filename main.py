@@ -85,6 +85,7 @@ def get_data():
     pd.set_option("display.max_rows", None, "display.max_columns", None)
     dataframe = pd.DataFrame(data, columns=['date', 'open', 'high', 'low', 'close'])
     dataframe['date'] = pd.to_datetime(dataframe['date'], unit= 's')
+    dataframe.date = dataframe.date.dt.tz_localize('UTC').dt.tz_convert('America/Los_Angeles',)
     dataframe.set_index('date', inplace=True)
     # print(dataframe)
     return(dataframe)
@@ -112,11 +113,19 @@ def get_SMA_indicator(dataframe):
     return(dataframe)
 
 def get_BBANDS_indicator(dataframe):
-    dataframe['upperband'], dataframe['middleband'], dataframe['lowerband'] = talib.BBANDS(dataframe['close'], 5, 2, 2, 0)
+    dataframe['upperband'], dataframe['middleband'], dataframe['lowerband'] = talib.BBANDS(dataframe['close'], timeperiod=5, nbdevup=2, nbdevdn=2, matype=0)
     # print(dataframe)
     return(dataframe)
 
+def get_MACD_indicator(dataframe):
+    dataframe['MACD'], dataframe['MACD_signal'], dataframe['MACD_history'] = MACD(dataframe['close'], fastperiod=12, slowperiod=26, signalperiod=9)
+    return(dataframe)
+
 """Strategies"""
+
+def MACD():
+    pass
+
 def supertrend(dataframe):
     data = dataframe
     get_BBANDS_indicator(data)
@@ -139,22 +148,6 @@ def supertrend(dataframe):
     return(data)
 
 
-
-
-
-
-
-
-    # dataframe.to_csv('Historic_rates')
-    # dataframe['20sma'] = dataframe.close #.rolling(20).mean()
-    # # print(dataframe.tail(5))
-    # sma = btalib.sma(dataframe.close)
-    # dataframe['sma'] = btalib.sma(dataframe.close, period=20).df
-    # # print(sma.df)
-    # pd.set_option("display.max_rows", None, "display.max_columns", None)
-
-    # print(dataframe.tail())
-
 def buy(trading_systems, current_price):
     last_trade = trading_systems.trade(BUY, current_price, 0.002)
     return last_trade
@@ -168,22 +161,24 @@ in_position = False
 def check_buy_sell_signals(dataframe, auth_client):
     global in_position
     print("checking for buys and sells")
-    print(dataframe.tail(2))
+    print(dataframe.head())
     print()
     latest_row_index = len(dataframe.index) - 1
-    previous_row_index = latest_row_index - 1
+    previous_row_index = latest_row_index -1
     
     trading_systems = Trading_System(auth_client)
     current_price = trading_systems.get_current_price_of_bitcoin()
+    print('CURRENT PRICE: ', current_price)
 
     """TESTS for buys and sells"""
     # dataframe['in_uptrend'][latest_row_index] = True
     # dataframe['in_uptrend'][latest_row_index] = False
 
 
+
     if not dataframe['in_uptrend'][previous_row_index] and dataframe['in_uptrend'][latest_row_index]:
-        print("Changed to uptrend, buy")
         if not in_position:
+            print("Changed to uptrend, buy")
             order = buy(trading_systems, current_price)
             print(order)
             in_position = True
@@ -191,14 +186,15 @@ def check_buy_sell_signals(dataframe, auth_client):
             print("Already in a position, nothing to do.")
     
     if dataframe['in_uptrend'][previous_row_index] and not dataframe['in_uptrend'][latest_row_index]:
-        print("Changed to downtrend, sell")
-
         if in_position:
+            print("Changed to downtrend, sell")
             order = sell(trading_systems, current_price)
             print(order)
             in_position = False
         else:
             print("Not in position, nothing to do.")
+    print("In position: ", in_position )
+
 
 def job():
     key = "PUBLIC_KEY"
@@ -218,9 +214,12 @@ def job():
 
 
 def main():
+    # print(get_data())
     job()
 
     schedule.every(1).minutes.do(job)
+    # schedule.every(5).seconds.do(job)
+
 
     while True:
         schedule.run_pending()

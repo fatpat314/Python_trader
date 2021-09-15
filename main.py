@@ -141,7 +141,7 @@ def MACDtrend(dataframe):
         if dataframe['MACD'][current] > dataframe['MACD_signal'][previous]:
             dataframe['MACD_uptrend'][current] = True
         elif dataframe['MACD'][current] < dataframe['MACD_signal'][previous]:
-            dataframe['MACD_uptrend'] = False
+            dataframe['MACD_uptrend'][current] = False
         else:
             dataframe['MACD_uptrend'][current] = dataframe['MACD_uptrend'][previous]
 
@@ -160,7 +160,7 @@ def supertrend(dataframe):
             data['in_uptrend'][current] = True
         # if the close price is less than the BBands lowerband, uptrend is false
         elif data['close'][current] < data['lowerband'][previous]:
-            data['in_uptrend'] = False
+            data['in_uptrend'][current] = False
         # else, set the current trend bool to the previous trend bool
         else:
             data['in_uptrend'][current] = data['in_uptrend'][previous]
@@ -224,8 +224,8 @@ def check_buy_sell_signals(dataframe, auth_client):
 
 
 def job():
-    key = "PUBLIC_KEY"
-    secret = "PRIVATE_KEY"
+    key = "PRIVATE_KEY"
+    secret = "PUBLIC_KEY"
     passphrase = "PASSPHRASE"
     url = "URL"
 

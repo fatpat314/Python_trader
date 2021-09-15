@@ -1,6 +1,7 @@
 import cbpro
 import time
 import pandas as pd
+from pandas.core.frame import DataFrame
 import talib
 import schedule
 import warnings
@@ -70,7 +71,7 @@ class Trading_System:
 def get_data():
     min1 = 60
     min15 = 900
-    hour = 3600
+    hour1 = 3600
     hour6 = 21600
     hour24 = 86400
 
@@ -124,13 +125,28 @@ def get_BBANDS_indicator(dataframe):
 
 # Moving average convergence divergence
 def get_MACD_indicator(dataframe):
-    dataframe['MACD'], dataframe['MACD_signal'], dataframe['MACD_history'] = talib.MACD(dataframe['close'], fastperiod=12, slowperiod=26, signalperiod=9)
+    dataframe['MACD'], dataframe['MACD_signal'], dataframe['MACD_histogram'] = talib.MACD(dataframe['close'], fastperiod=12, slowperiod=26, signalperiod=9)
     return(dataframe)
 
 """Strategies"""
 
-def MACDtrend():
-    pass
+def MACDtrend(dataframe):
+    dataframe = get_MACD_indicator(dataframe)
+    # When MACD line crosses signal line, buy
+    # print(dataframe['MACD'])
+    dataframe['MACD_uptrend'] = True
+    for current in range(1, len(dataframe.index)):
+        # print(dataframe['MACD'][current], dataframe['MACD_signal']
+        previous = current - 1
+        if dataframe['MACD'][current] > dataframe['MACD_signal'][previous]:
+            dataframe['MACD_uptrend'][current] = True
+        elif dataframe['MACD'][current] < dataframe['MACD_signal'][previous]:
+            dataframe['MACD_uptrend'] = False
+        else:
+            dataframe['MACD_uptrend'][current] = dataframe['MACD_uptrend'][previous]
+
+
+    return dataframe
 
 def supertrend(dataframe):
     data = dataframe
@@ -165,7 +181,7 @@ def sell(trading_systems, current_price):
     last_trade = trading_systems.trade(SELL, current_price, 0.002)
     return last_trade
 
-in_position = False
+in_position = True
 
 def check_buy_sell_signals(dataframe, auth_client):
     global in_position
@@ -173,7 +189,7 @@ def check_buy_sell_signals(dataframe, auth_client):
     print(dataframe.head())
     print()
     latest_row_index = len(dataframe.index) - 1
-    previous_row_index = latest_row_index -1
+    previous_row_index = latest_row_index - 1
     
     trading_systems = Trading_System(auth_client)
     current_price = trading_systems.get_current_price_of_bitcoin()
@@ -186,22 +202,24 @@ def check_buy_sell_signals(dataframe, auth_client):
 
 
     if not dataframe['in_uptrend'][previous_row_index] and dataframe['in_uptrend'][latest_row_index]:
-        if not in_position:
-            print("Changed to uptrend, buy")
-            order = buy(trading_systems, current_price)
-            print(order)
-            in_position = True
-        else:
-            print("Already in a position, nothing to do.")
+        if not dataframe['MACD_uptrend'][previous_row_index] and dataframe['MACD_uptrend'][latest_row_index]:
+            if not in_position:
+                print("Changed to uptrend, buy")
+                order = buy(trading_systems, current_price)
+                print(order)
+                in_position = True
+            else:
+                print("Already in a position, nothing to do.")
     
     if dataframe['in_uptrend'][previous_row_index] and not dataframe['in_uptrend'][latest_row_index]:
-        if in_position:
-            print("Changed to downtrend, sell")
-            order = sell(trading_systems, current_price)
-            print(order)
-            in_position = False
-        else:
-            print("Not in position, nothing to do.")
+        if dataframe['MACD_uptrend'][previous_row_index] and not dataframe['MACD_uptrend'][latest_row_index]:
+            if in_position:
+                print("Changed to downtrend, sell")
+                order = sell(trading_systems, current_price)
+                print(order)
+                in_position = False
+            else:
+                print("Not in position, nothing to do.")
     print("In position: ", in_position )
 
 
@@ -217,13 +235,16 @@ def job():
     print(f"Fetching data for {datetime.now()}")
     data = get_data()
     # print(data[:5])
-    supertrend_data = supertrend(data)
-    check_buy_sell_signals(supertrend_data, auth_client)
+    data = supertrend(data)
+    data = MACDtrend(data)
+    check_buy_sell_signals(data, auth_client)
 
 
 
 def main():
-    # print(get_data())
+    # data = get_data()
+    # print(MACDtrend(data))
+
     job()
 
     schedule.every(1).minutes.do(job)
@@ -293,11 +314,6 @@ def main():
 
 
 if __name__ == "__main__":
-    # schedule.every(10).seconds.do(main)
-    # while True:
-    #     schedule.run_pending()
-    #     time.sleep(1)
-    # run = True
     main()
     # data = get_data()
     # # data = get_SMA_indicator(data)

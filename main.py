@@ -70,6 +70,7 @@ class Trading_System:
 """Fetching data"""
 def get_data():
     min1 = 60
+    min5 = 300
     min15 = 900
     hour1 = 3600
     hour6 = 21600
@@ -77,7 +78,7 @@ def get_data():
 
     public_client = cbpro.PublicClient()
     # get historic rates('product_id', 'start_date', 'end_date', 'timeframe')
-    data = public_client.get_product_historic_rates('BTC-USD', '', '', min1)
+    data = public_client.get_product_historic_rates('BTC-USD', '', '', min5)
 
     for line in data:
         # delete volume column from data
@@ -144,7 +145,7 @@ def MACDtrend(dataframe):
             dataframe['MACD_uptrend'][current] = False
         else:
             dataframe['MACD_uptrend'][current] = dataframe['MACD_uptrend'][previous]
-    dataframe = dataframe.shift(-33)
+    dataframe['MACD_uptrend'] = dataframe['MACD_uptrend'].shift(-34)
 
 
     return dataframe
@@ -153,7 +154,7 @@ def MACDtrend(dataframe):
 def supertrend(dataframe):
     data = dataframe
     get_BBANDS_indicator(data)
-    dataframe['in_uptrend'] = False
+    dataframe['in_uptrend'] = True
 
 
     for current in range(1, len(data.index)):
@@ -177,7 +178,7 @@ def supertrend(dataframe):
     # for current in range(1, len(data.index)):
     #     if data['in_uptrend'][current] == 'nan':
     #         data['in_uptrend'][current] = data['in_uptrend'][6]
-    data = data.shift(-5)
+    data['in_uptrend'] = data['in_uptrend'].shift(-8)
 
     
 
@@ -192,20 +193,21 @@ def sell(trading_systems, current_price):
     last_trade = trading_systems.trade(SELL, current_price, 0.002)
     return last_trade
 
-in_position = False
+in_position = True
 
 def check_buy_sell_signals(dataframe, auth_client):
     global in_position
     print("checking for buys and sells")
     print(dataframe.head(5))
     print()
-    latest_row_index = 1
+    latest_row_index = 0
     previous_row_index = latest_row_index + 1
     
     trading_systems = Trading_System(auth_client)
     current_price = trading_systems.get_current_price_of_bitcoin()
     print('CURRENT PRICE: ', current_price)
-    print(dataframe['in_uptrend'][latest_row_index])
+    print("BB_data: ", dataframe['in_uptrend'][latest_row_index],dataframe['in_uptrend'][previous_row_index])
+    print("MACD_data: ", dataframe['MACD_uptrend'][latest_row_index],dataframe['MACD_uptrend'][previous_row_index])
 
     """TESTS for buys and sells"""
     # dataframe['in_uptrend'][latest_row_index] = True
@@ -220,6 +222,7 @@ def check_buy_sell_signals(dataframe, auth_client):
                 order = buy(trading_systems, current_price)
                 print(order)
                 in_position = True
+                print('\a')
             else:
                 print("Already in a position, nothing to do.")
     
@@ -230,6 +233,7 @@ def check_buy_sell_signals(dataframe, auth_client):
                 order = sell(trading_systems, current_price)
                 print(order)
                 in_position = False
+                print('\a')
             else:
                 print("Not in position, nothing to do.")
     print("In position: ", in_position )
@@ -250,6 +254,7 @@ def job():
     data = supertrend(data)
     data = MACDtrend(data)
     check_buy_sell_signals(data, auth_client)
+    print('-------------------------------------------------------------------')
 
 
 
@@ -259,7 +264,7 @@ def main():
 
     job()
 
-    schedule.every(1).minutes.do(job)
+    schedule.every(5).minutes.do(job)
     # schedule.every(5).seconds.do(job)
 
 

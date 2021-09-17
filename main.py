@@ -144,15 +144,18 @@ def MACDtrend(dataframe):
             dataframe['MACD_uptrend'][current] = False
         else:
             dataframe['MACD_uptrend'][current] = dataframe['MACD_uptrend'][previous]
+    dataframe = dataframe.shift(-33)
 
 
     return dataframe
 
+
 def supertrend(dataframe):
     data = dataframe
     get_BBANDS_indicator(data)
-    data['in_uptrend'] = True
-    
+    dataframe['in_uptrend'] = False
+
+
     for current in range(1, len(data.index)):
         previous = current -1
         # if the close price is greater than the BBands upperband, uptrend is true
@@ -170,6 +173,14 @@ def supertrend(dataframe):
             
             if not data['in_uptrend'][current] and data['upperband'][current] > data['upperband'][previous]:
                 data['upperband'][current] = data['upperband'][previous]
+    
+    # for current in range(1, len(data.index)):
+    #     if data['in_uptrend'][current] == 'nan':
+    #         data['in_uptrend'][current] = data['in_uptrend'][6]
+    data = data.shift(-5)
+
+    
+
     return(data)
 
 
@@ -181,19 +192,20 @@ def sell(trading_systems, current_price):
     last_trade = trading_systems.trade(SELL, current_price, 0.002)
     return last_trade
 
-in_position = True
+in_position = False
 
 def check_buy_sell_signals(dataframe, auth_client):
     global in_position
     print("checking for buys and sells")
-    print(dataframe.head())
+    print(dataframe.head(5))
     print()
-    latest_row_index = len(dataframe.index) - 1
-    previous_row_index = latest_row_index - 1
+    latest_row_index = 1
+    previous_row_index = latest_row_index + 1
     
     trading_systems = Trading_System(auth_client)
     current_price = trading_systems.get_current_price_of_bitcoin()
     print('CURRENT PRICE: ', current_price)
+    print(dataframe['in_uptrend'][latest_row_index])
 
     """TESTS for buys and sells"""
     # dataframe['in_uptrend'][latest_row_index] = True
@@ -224,8 +236,8 @@ def check_buy_sell_signals(dataframe, auth_client):
 
 
 def job():
-    key = "PRIVATE_KEY"
-    secret = "PUBLIC_KEY"
+    key = "PUBLIC_KEY"
+    secret = "PRIVATE_KEY"
     passphrase = "PASSPHRASE"
     url = "URL"
 
